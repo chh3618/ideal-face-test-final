@@ -1,4 +1,3 @@
-'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 
@@ -9,6 +8,7 @@ export default function Result() {
   useEffect(() => {
     const fetchImage = async () => {
       const { gender, answers } = router.query;
+
       if (!gender || !answers) return;
 
       try {
@@ -20,38 +20,29 @@ export default function Result() {
           return;
         }
 
-        const accessoryPrompts = validAnswers
-          .filter((answer: string) =>
-            answer.includes('안경') || answer.includes('귀걸이') || answer.includes('악세서리')
-          )
-          .join(', ');
+        const personality = validAnswers.join(', ');
+        const basePrompt =
+          gender === 'female'
+            ? 'young Korean woman, DSLR portrait, soft smile, clear skin, realistic photo'
+            : 'young Korean man, cinematic portrait, calm expression, DSLR quality, realistic photo';
 
-        const basePrompt = validAnswers
-          .filter((answer: string) =>
-            !answer.includes('안경') && !answer.includes('귀걸이') && !answer.includes('악세서리')
-          )
-          .join(', ');
+        // 악세서리 관련 단어가 포함되어 있으면 강조
+        const accessories = validAnswers.filter(a =>
+          /(안경|귀걸이|피어싱|accessory|earring|glasses)/i.test(a)
+        );
 
-        const prompt =
-          basePrompt +
-          (accessoryPrompts ? ', ' + accessoryPrompts : '') +
-          (gender === 'female'
-            ? ', photo of a beautiful young woman, DSLR quality, natural lighting, realistic face, clear eyes'
-            : ', portrait of a confident young man, high-quality photo, studio lighting, realistic, detailed');
+        const prompt = `${personality}${accessories.length ? ', ' + accessories.join(', ') : ''}, ${basePrompt}`;
 
-        console.log('📸 생성 프롬프트:', prompt);
+        console.log('👉 최종 프롬프트:', prompt);
 
         const res = await fetch('/api/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt,
-            style: 'vivid', // 실사화 강조
-          }),
+          body: JSON.stringify({ prompt }),
         });
 
         const data = await res.json();
-        if (res.ok && data.url) {
+        if (res.ok) {
           setImageUrl(data.url);
         } else {
           console.error('🚫 OpenAI 응답 오류:', data);
@@ -68,13 +59,9 @@ export default function Result() {
     <main className="p-6 text-center">
       <h1 className="text-2xl font-bold mb-4">당신의 이상형 얼굴은?</h1>
       {imageUrl ? (
-        <img
-          src={imageUrl}
-          alt="Ideal Face"
-          className="mx-auto rounded-xl shadow-lg"
-        />
+        <img src={imageUrl} alt="Ideal Face" className="mx-auto rounded-xl shadow-lg" />
       ) : (
-        <p>결과 생성 중...</p>
+        <p>결과 생성 중... 잠시만 기다려 주세요.</p>
       )}
     </main>
   );
